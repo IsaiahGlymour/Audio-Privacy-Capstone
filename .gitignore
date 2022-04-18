@@ -1,0 +1,8 @@
+
+*.lablaut
+*.labsilb
+*.silb
+*.wav
+NNDatasets/NNDatasets/audio/erkennung.txt
+NNDatasets/NNDatasets/audio/erklaerung.txt
+NNDatasets/NNDatasets/audio/savee_Info.txt
