@@ -36,9 +36,9 @@ def DecisionTree(X_train, X_test, y_train, y_test):
   dtree.fit(X_train, y_train)
   predictions = dtree.predict(X_test)
   #print(classification_report(y_test,predictions))
-  print(accuracy_score(y_test, predictions))
+  #print(accuracy_score(y_test, predictions))
 
-  return dtree
+  return dtree, accuracy_score(y_test, predictions)
 
 def RandomForest(X_train, X_test, y_train, y_test):
 
@@ -49,9 +49,9 @@ def RandomForest(X_train, X_test, y_train, y_test):
   rforest.fit(X_train, y_train)
   predictions = rforest.predict(X_test)
   #print(classification_report(y_test,predictions))
-  print(accuracy_score(y_test, predictions))
+  #print(accuracy_score(y_test, predictions))
 
-  return rforest
+  return rforest, accuracy_score(y_test, predictions)
 
 def NueralNetwork(X_train, X_test, y_train, y_test):
 
@@ -107,9 +107,11 @@ def NueralNetwork(X_train, X_test, y_train, y_test):
   y_train_encoded = le.transform(y_train)
   y_test_encoded = le.transform(y_test)
 
-  cnnhistory=model.fit(x_traincnn, y_train_encoded, batch_size=16, epochs=100, validation_data=(x_testcnn, y_test_encoded), verbose = 0)
+  cnnhistory=model.fit(x_traincnn, y_train_encoded, batch_size=16, epochs=500, validation_data=(x_testcnn, y_test_encoded), verbose = 0)
 
-  return model, cnnhistory, x_testcnn
+  best_model_accuracy = cnnhistory.history['acc'][argmin(history.history['loss'])]
+
+  return model, cnnhistory, x_testcnn, best_model_accuracy
 
 def explainTree(model,X):
   shap.initjs()
@@ -138,7 +140,7 @@ if (sys.argv[3] not in ['pickle', 'pickled', 'pickless',]):
 
 dataset_name = sys.argv[1]
 model_type = sys.argv[2]
-path = 'C:/Users/ronna/Documents/GitHub/Audio-Privacy-Capstone/NNDatasets/NNDatasets/audio/' + sys.argv[1] #Change to appropriate path
+path = 'C:/Users/ronna/OneDrive/Documents/GitHub/Audio-Privacy-Capstone/NNDatasets/audio/' + sys.argv[1] #Change to appropriate path
 print(path)
 if (sys.argv[1] == 'emodb'):
   path = path + "/wav"
@@ -147,6 +149,10 @@ lst = []
 output_dir = 'model_pickles/'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
+
+result_dir = 'res/'
+if not os.path.exists(result_dir):
+    os.makedirs(result_dir)
 
 #decide whether to use an already pickled list, pickle a new list, or run without pickling at all
 #pickle - pickle a new list
@@ -193,11 +199,17 @@ elif(sys.argv[3] == 'pickled'):
   f = open(output_dir + str(dataset_name) + '.pkl', 'rb')
   lst = pickle.load(f)
 
-for n in range(40):
-  mask = np.ones(40,dtype=bool)
-  ind = [0,30,39,6,21,34,25,17,13,31,19,33,36,27,29,4,2,32,14,12,37,5,9,11,18,16,35,15,38,1,8,23,22,28,26,24,3,10,7,20]
+
+feature_num = 40
+trial_run = 1
+results = np.zeros((feature_num,trial_run))
+for n in range(feature_num):
+  mask = np.ones(feature_num,dtype=bool)
+  ind = [0,1,2,30,39,33,28,35,5,31,29,8,34,4,18,28,6,19,17,15,27,37,21,22,20,32,36,7,13,3,24,25,14,23,16,9,12,11,26,10]
   ind = ind[0:n]
   mask[ind] = False
+
+  print(ind)
 
   X, y = zip(*lst)
   X = np.asarray(X)
@@ -208,22 +220,26 @@ for n in range(40):
 
   #which model to run? defaults to all
 
-  if(model_type == 'tree'):
-    treeModel = DecisionTree(X_train, X_test, y_train, y_test)
-    #explainTree(treeModel,X)
-  elif(model_type == 'forest'):
-    rfModel = RandomForest(X_train, X_test, y_train, y_test)
-    explainTree(rfModel,X)
-  elif(model_type == 'NN'):
-    nnModel, cnnhistory, nnxTest = NueralNetwork(X_train, X_test, y_train, y_test)
-    #explainNN(nnModel,X_train,X_test)
-  else: #Else we run all
-    treeModel = DecisionTree(X_train, X_test, y_train, y_test)
-    rfModel = RandomForest(X_train, X_test, y_train, y_test)
-    nnModel, cnnhistory, nnxTest = NueralNetwork(X_train, X_test, y_train, y_test)
-    explainTree(treeModel,X)
-    explainTree(rfModel,X)
-    explainNN(nnModel,X_train,X_test)
+  for t in range(trial_run):
+    if(model_type == 'tree'):
+      treeModel, acc = DecisionTree(X_train, X_test, y_train, y_test)
+      results[n][t] = acc
+      #explainTree(treeModel,X)
+    elif(model_type == 'forest'):
+      rfModel, acc = RandomForest(X_train, X_test, y_train, y_test)
+      results[n][t] = acc
+      #explainTree(rfModel,X)
+    elif(model_type == 'NN'):
+      nnModel, cnnhistory, nnxTest, acc = NueralNetwork(X_train, X_test, y_train, y_test)
+      results[n][t] = acc
+      #explainNN(nnModel,X_train,X_test)
+    else: #Else we run all
+      treeModel = DecisionTree(X_train, X_test, y_train, y_test)
+      rfModel = RandomForest(X_train, X_test, y_train, y_test)
+      nnModel, cnnhistory, nnxTest, acc = NueralNetwork(X_train, X_test, y_train, y_test)
+      explainTree(treeModel,X)
+      explainTree(rfModel,X)
+      explainNN(nnModel,X_train,X_test)
 
   # plt.plot(cnnhistory.history['loss'])
   # plt.plot(cnnhistory.history['val_loss'])
@@ -232,3 +248,5 @@ for n in range(40):
   # plt.xlabel('epoch')
   # plt.legend(['train', 'test'], loc='upper left')
   # plt.show()
+
+np.savetxt(result_dir + str(dataset_name) + '_' +  str(model_type) + '.txt', results, delimiter=',')
