@@ -80,7 +80,7 @@ def NueralNetwork(X_train, X_test, y_train, y_test):
   model.add(Activation('softmax'))
   opt = tf.keras.optimizers.RMSprop(learning_rate=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-  model.summary()
+  #model.summary()
 
   model.compile(loss='sparse_categorical_crossentropy',
                 optimizer=opt,
@@ -107,9 +107,11 @@ def NueralNetwork(X_train, X_test, y_train, y_test):
   y_train_encoded = le.transform(y_train)
   y_test_encoded = le.transform(y_test)
 
-  cnnhistory=model.fit(x_traincnn, y_train_encoded, batch_size=16, epochs=500, validation_data=(x_testcnn, y_test_encoded), verbose = 0)
+  cnnhistory=model.fit(x_traincnn, y_train_encoded, batch_size=16, epochs=1000, validation_data=(x_testcnn, y_test_encoded), verbose = 0)
 
-  best_model_accuracy = cnnhistory.history['acc'][argmin(history.history['loss'])]
+  best_model_accuracy = cnnhistory.history['val_accuracy'][np.argmin(cnnhistory.history['loss'])]
+
+  print(best_model_accuracy)
 
   return model, cnnhistory, x_testcnn, best_model_accuracy
 
@@ -202,10 +204,13 @@ elif(sys.argv[3] == 'pickled'):
 
 feature_num = 40
 trial_run = 1
-results = np.zeros((feature_num,trial_run))
+results = np.zeros((feature_num+1,trial_run))
 for n in range(feature_num):
   mask = np.ones(feature_num,dtype=bool)
-  ind = [0,1,2,30,39,33,28,35,5,31,29,8,34,4,18,28,6,19,17,15,27,37,21,22,20,32,36,7,13,3,24,25,14,23,16,9,12,11,26,10]
+  print(n)
+  ind = [2,4,39,19,33,17,38,0,1,10,20,7,9,34,18,37,8,31,30,13,15,25,6,21,5,3,12,11,16,35,29,26,24,28,32,14,23,27,22,36]
+  #ind = ind[::-1] #Most important to least important
+  #print(ind)
   ind = ind[0:n]
   mask[ind] = False
 
@@ -213,7 +218,10 @@ for n in range(feature_num):
 
   X, y = zip(*lst)
   X = np.asarray(X)
-  X = X[:,mask]
+  if(model_type == 'NN'):
+    X[:,ind] = 0
+  else:
+    X = X[:,mask]
   y = np.asarray(y)
 
   X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
